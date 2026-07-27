@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 
 import streamlit as st
@@ -44,7 +45,13 @@ UPLOAD_FOLDER = "uploaded_files"
 # "attempt to write a readonly database" error. Using the system temp
 # directory avoids this since it's guaranteed writable in virtually
 # every container environment, including Streamlit Cloud.
-VECTOR_DB = os.path.join(tempfile.gettempdir(), "ai_doc_analyzer_vector_db")
+#
+# We also don't reuse a single fixed path across rebuilds - Chroma's
+# underlying engine can hit "attempt to write a readonly database"
+# when a persist_directory is deleted and recreated at the exact same
+# path within the same running process (a known Chroma issue). Each
+# build gets its own unique subfolder instead, avoiding that entirely.
+VECTOR_DB_BASE = os.path.join(tempfile.gettempdir(), "ai_doc_analyzer_vector_db")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 CHAT_MODEL = "gpt-4.1"
@@ -88,6 +95,10 @@ if "knowledge_ready" not in st.session_state:
 
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
+
+
+if "vector_db_path" not in st.session_state:
+    st.session_state.vector_db_path = None
 
 
 # ====================================================
@@ -146,12 +157,14 @@ if delete_button:
 
     # Delete vector database
 
-    if os.path.exists(VECTOR_DB):
+    if st.session_state.vector_db_path and os.path.exists(st.session_state.vector_db_path):
 
         shutil.rmtree(
-            VECTOR_DB,
+            st.session_state.vector_db_path,
             ignore_errors=True
         )
+
+    st.session_state.vector_db_path = None
 
 
     # Recreate empty upload folder
@@ -262,14 +275,20 @@ if uploaded_files:
     )
 
 
-    # Remove previous vector database
+    # Clean up the previous vector database, if any - but the new one
+    # below gets a brand new unique path, it never reuses this one
 
-    if os.path.exists(VECTOR_DB):
+    previous_path = st.session_state.vector_db_path
+
+    if previous_path and os.path.exists(previous_path):
 
         shutil.rmtree(
-            VECTOR_DB,
+            previous_path,
             ignore_errors=True
         )
+
+
+    new_vector_db_path = f"{VECTOR_DB_BASE}_{uuid.uuid4().hex}"
 
 
     with st.spinner(
@@ -283,9 +302,12 @@ if uploaded_files:
 
             embedding=embeddings,
 
-            persist_directory=VECTOR_DB
+            persist_directory=new_vector_db_path
 
         )
+
+
+    st.session_state.vector_db_path = new_vector_db_path
 
 
     st.session_state.knowledge_ready = True

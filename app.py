@@ -458,10 +458,6 @@ Provide:
 
 1. Answer
 
-2. Explanation
-
-3. Summary
-
 """
 
 

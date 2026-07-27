@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 import streamlit as st
@@ -36,7 +37,14 @@ if not OPENAI_API_KEY:
 # ====================================================
 
 UPLOAD_FOLDER = "uploaded_files"
-VECTOR_DB = "vector_db"
+
+# SQLite (which Chroma uses locally) needs to create extra lock/journal
+# files alongside its database, which can fail on restricted container
+# filesystems even when regular file writes succeed - that's the exact
+# "attempt to write a readonly database" error. Using the system temp
+# directory avoids this since it's guaranteed writable in virtually
+# every container environment, including Streamlit Cloud.
+VECTOR_DB = os.path.join(tempfile.gettempdir(), "ai_doc_analyzer_vector_db")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 CHAT_MODEL = "gpt-4.1"

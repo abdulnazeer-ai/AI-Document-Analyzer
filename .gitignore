@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+
+# Chroma Vector Database
+vector_db/
+
+# PDF documents
+data/*.pdf
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

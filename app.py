@@ -7,6 +7,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores.utils import filter_complex_metadata
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_openai import (
@@ -241,6 +242,11 @@ if uploaded_files:
         chunks = splitter.split_documents(
             documents
         )
+
+        # PDF metadata can contain None values or complex types Chroma
+        # can't store (only str/int/float/bool are supported) - this
+        # strips anything unsupported so it doesn't crash the upsert
+        chunks = filter_complex_metadata(chunks)
 
 
     embeddings = OpenAIEmbeddings(
